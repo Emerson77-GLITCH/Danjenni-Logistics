@@ -35,10 +35,20 @@ Full spec (decisions, data model, assumptions, risks): see the "Spec snapshot" a
 - [ ] Migrations workflow (`drizzle-kit generate` / `migrate`) + seed script with sample org, shipments and invoices
 
 ## Phase 2 — Authentication & roles (Clerk)
-- [ ] Clerk app set up with Organizations enabled; public sign-up disabled (invite-only)
-- [ ] Clerk in `apps/web` (middleware, sign-in page, protected routes)
+- [ ] Clerk app set up with Organizations enabled; **public sign-up enabled** (email + password with email verification, Google, Apple); bot protection on
+- [ ] Mobile splash screen (design 01) → auth screens
+- [ ] Mobile log-in screen UI (design 04) — built, pending screenshot check against the mockup
+- [ ] Mobile sign-up screen UI (design 03): full name, email, password, Google/Apple — built, pending device check
+- [x] Light/dark mode switch (sun/moon in auth headers), choice saved with `expo-sqlite/kv-store` (web preview: localStorage)
+- [ ] Light/Dark option on the Profile & Settings screen (when that screen is built)
+- [ ] Google + Apple sign-in/sign-up via Clerk `useSSO` (browser flow, `danjenni://sso-callback`) — built; needs the redirect URL allowed in Clerk Dashboard + a dev-build round-trip test
+- [ ] Email + password log-in / sign-up (+ email verification code), forgot password — **enable email & password in Clerk first** (currently off)
+- [ ] First-run onboarding: new customer creates their company organization (name, phone) or accepts a pending invite
+- [x] `ClerkProvider` + `tokenCache` (session survives restarts) in the root layout
+- [ ] Protected routes: signed-out users only see splash/auth (done: `(auth)` / `(app)` guards + splash routing); signed-in users without an org go to onboarding (todo)
+- [ ] Clerk in `apps/web` (middleware, sign-in/sign-up pages, protected routes)
 - [ ] Clerk in `apps/mobile` (verify the Expo SDK 58–compatible package and setup in the docs first; secure token storage)
-- [ ] Roles: `admin` / `staff` stored in `publicMetadata.role`; customers = org members
+- [ ] Roles: `admin` / `staff` stored in `publicMetadata.role` (set by an admin only, never from sign-up); customers = org members
 - [ ] Clerk webhook → Inngest: sync users and orgs into Neon (idempotent)
 - [ ] API auth helper: verify Clerk session token (web cookie + mobile bearer), resolve `{ userId, role, orgId }`
 - [ ] Authorization guards: `requireStaff`, `requireAdmin`, `requireOrgMember` (every customer query scoped by `org_id`)
@@ -46,9 +56,10 @@ Full spec (decisions, data model, assumptions, risks): see the "Spec snapshot" a
 
 ## Phase 3 — Admin: customers & invites (web)
 - [ ] `/admin` layout, role-gated to staff/admin
-- [ ] Create customer organization (name, phone, billing email)
-- [ ] Invite customer users to an org (Clerk invitation email)
-- [ ] List orgs and members; remove a member
+- [ ] List signed-up customer organizations and their members (search by company, email, phone)
+- [ ] Create a customer organization on a customer's behalf (name, phone, billing email) for walk-in/offline customers
+- [ ] Invite users to an org (Clerk invitation email); customers can also invite their own teammates
+- [ ] Remove a member; suspend an org
 - [ ] Admin-only: manage staff accounts and roles
 - [ ] Audit-log entries for these actions
 
@@ -122,9 +133,10 @@ Full spec (decisions, data model, assumptions, risks): see the "Spec snapshot" a
 - [ ] Org-isolation tests for every customer endpoint
 - [ ] Input validation with zod on every API route
 - [ ] Rate limiting on payment start and upload-signature endpoints
+- [ ] Sign-up abuse: Clerk bot protection, email verification required, no data visible until the org is linked by staff
 - [ ] Accessibility pass (labels, contrast, dynamic text) on mobile + web
 - [ ] Slow-network / offline error states on mobile
-- [ ] Full end-to-end walkthrough: invite → shipment → events → invoice → pay → receipt → notifications
+- [ ] Full end-to-end walkthrough: sign up → create org → shipment → events → invoice → pay → receipt → notifications
 
 ## Phase 13 — Deployment & CI (deferred — decide later)
 - [ ] Choose hosting for `apps/web` + Inngest Cloud
@@ -139,9 +151,11 @@ Full spec (decisions, data model, assumptions, risks): see the "Spec snapshot" a
 
 **Stack (fixed):** Clerk · Inngest (dev server for now) · Expo SDK 58 (mobile) · Next.js (web + API + admin) · Neon Postgres + Drizzle · ImageKit · Sentry · Paystack Ghana · mNotify (SMS) · Resend (email)
 
-**Users:** business customers (Clerk Organizations, invite-only); internal `admin` and `staff`.
+**Users:** business customers who **sign up themselves** (email + password, Google, Apple), create or join their company's Clerk Organization, and must be logged in to see shipments, invoices and payments; internal `admin` and `staff` (role set by an admin).
 
 **Out of scope for v1:** live GPS/driver tracking, carrier API integrations, customer self-booking, push notifications, partial payments, ERP sync, public no-login tracking, i18n.
+
+**Assumption (sign-up):** a new customer's org starts empty — staff link shipments/invoices to it (matching by company/email/phone). Confirm before Phase 3.
 
 **Assumptions:** Drizzle + Turborepo; admin sets the USD→GHS rate by hand; full payments only, refunds done in the Paystack dashboard; staff use the same mobile app; English only.
 
